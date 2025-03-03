@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Age Progression Calculator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .upload-container {
+            margin-bottom: 30px;
+        }
+        
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        
+        .image-preview {
+            flex: 0 0 48%;
+            background-color: #eee;
+            border-radius: 5px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        .slider-container {
+            margin-bottom: 20px;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .upload-btn {
+            display: inline-block;
+            background-color: #4285f4;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .upload-btn:hover {
+            background-color: #3367d6;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 15px;
+            border-radius: 5px;
+            outline: none;
+            margin-top: 10px;
+        }
+        
+        .age-display {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Age Progression Calculator</h1>
+        
+        <div class="upload-container">
+            <form id="uploadForm" action="process.php" method="post" enctype="multipart/form-data">
+                <label for="imageUpload" class="upload-btn">Choose Image</label>
+                <input type="file" id="imageUpload" name="imageFile" accept="image/*">
+                <span id="fileNameDisplay"></span>
+            </form>
+        </div>
+        
+        <div class="loading" id="loadingIndicator">
+            <p>Processing image...</p>
+        </div>
+        
+        <div class="preview-container">
+            <div class="image-preview">
+                <div id="originalImageContainer">
+                    <p>Original Image</p>
+                </div>
+            </div>
+            <div class="image-preview">
+                <div id="agedImageContainer">
+                    <p>Aged Image Preview</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="age-display">
+                Age: <span id="ageValue">Current</span>
+            </div>
+            <div class="slider-container">
+                <input type="range" min="0" max="60" value="0" class="slider" id="ageSlider" disabled>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageUpload = document.getElementById('imageUpload');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            const ageSlider = document.getElementById('ageSlider');
+            const ageValue = document.getElementById('ageValue');
+            const originalImageContainer = document.getElementById('originalImageContainer');
+            const agedImageContainer = document.getElementById('agedImageContainer');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const uploadForm = document.getElementById('uploadForm');
+            
+            let originalImageUrl = null;
+            
+            // Handle file selection
+            imageUpload.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    fileNameDisplay.textContent = file.name;
+                    
+                    // Show loading indicator
+                    loadingIndicator.style.display = 'block';
+                    
+                    // Upload the file
+                    const formData = new FormData(uploadForm);
+                    
+                    fetch('process.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Hide loading indicator
+                            loadingIndicator.style.display = 'none';
+                            
+                            // Display original image
+                            originalImageContainer.innerHTML = '';
+                            const originalImg = document.createElement('img');
+                            originalImg.src = data.originalImageUrl;
+                            originalImageContainer.appendChild(originalImg);
+                            
+                            // Store original image URL
+                            originalImageUrl = data.originalImageUrl;
+                            
+                            // Display initial aged image
+                            agedImageContainer.innerHTML = '';
+                            const agedImg = document.createElement('img');
+                            agedImg.src = data.agedImageUrl;
+                            agedImageContainer.appendChild(agedImg);
+                            
+                            // Enable slider
+                            ageSlider.disabled = false;
+                        } else {
+                            alert('Error: ' + data.message);
+                            loadingIndicator.style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while processing the image.');
+                        loadingIndicator.style.display = 'none';
+                    });
+                }
+            });
+            
+            // Handle slider change
+            ageSlider.addEventListener('input', function() {
+                const ageProgress = this.value;
+                ageValue.textContent = ageProgress > 0 ? `Current + ${ageProgress} years` : 'Current';
+                
+                if (originalImageUrl) {
+                    // Show loading indicator
+                    loadingIndicator.style.display = 'block';
+                    
+                    // Request new aged image
+                    fetch('age.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `imageUrl=${encodeURIComponent(originalImageUrl)}&ageAmount=${ageProgress}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Hide loading indicator
+                            loadingIndicator.style.display = 'none';
+                            
+                            // Update aged image
+                            agedImageContainer.innerHTML = '';
+                            const agedImg = document.createElement('img');
+                            agedImg.src = data.agedImageUrl + '?t=' + new Date().getTime();
+                            agedImageContainer.appendChild(agedImg);
+                        } else {
+                            alert('Error: ' + data.message);
+                            loadingIndicator.style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while aging the image.');
+                        loadingIndicator.style.display = 'none';
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
